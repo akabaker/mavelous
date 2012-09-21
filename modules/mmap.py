@@ -1,3 +1,4 @@
+from time import sleep
 import logging
 import os
 import sys
@@ -151,6 +152,67 @@ class ModuleState(object):
               0, # param6
               0) # param7
       self.module_context.queue_message(msg)
+
+    elif m['command'] == 'NAV_TAKEOFF':
+		#The MAV_CMD_NAV_TAKEOFF command returns '3' when sent, so this is a 
+		#hack to get the quad off the ground
+			rc_chan = {
+				'1': 65535,
+				'2': 65535,
+				'3': 1500,
+				'4': 0,
+				'5': 65535,
+				'6': 65535,
+				'7': 65535,
+				'8': 65535,
+			}
+
+			takeoff_alt = 20
+
+			#Override RC control to throttle up then take off as a mission item
+			msg = mavlinkv10.MAVLink_rc_channels_override_message(
+				self.module_context.status.target_system,
+				self.module_context.status.target_component,
+				rc_chan['1'],rc_chan['2'],rc_chan['3'],rc_chan['4'],rc_chan['5'],
+				rc_chan['6'],rc_chan['7'],rc_chan['8']
+			)
+			self.messages.insert_message(msg)
+			self.module_context.queue_message(msg)
+
+			#Wait a second and then hold throttle
+			sleep(2)
+			rc_chan['3'] = 1315
+			
+			msg = mavlinkv10.MAVLink_rc_channels_override_message(
+				self.module_context.status.target_system,
+				self.module_context.status.target_component,
+				rc_chan['1'],rc_chan['2'],rc_chan['3'],rc_chan['4'],rc_chan['5'],
+				rc_chan['6'],rc_chan['7'],rc_chan['8']
+			)
+			self.messages.insert_message(msg)
+			self.module_context.queue_message(msg)
+
+			seq = 0 # Mission command sequence number
+			# NOT a coordinate frame, indicates a mission command, see mavlink common.xml
+			frame = mavlinkv10.MAV_FRAME_MISSION
+			cmd = mavlinkv10.MAV_CMD_NAV_TAKEOFF
+			param1 = 0  # Hold time in seconds.
+			param2 = 5  # Acceptance radius in meters.
+			param3 = 0  # Pass through the WP.
+			param4 = 0  # Desired yaw angle at WP.
+			x = 0 # Not used in mission frame
+			y = 0 # Not used in mission frame
+			# APM specific current value, 2 means this is a "guided mode"
+			# waypoint and not for the mission.
+			current = 2
+			autocontinue = 0
+			msg = mavlinkv10.MAVLink_mission_item_message(
+			self.module_context.status.target_system,
+			self.module_context.status.target_component,
+			seq, frame, cmd, current, autocontinue, param1, param2, param3, param4,
+			x, y, takeoff_alt)
+			self.module_context.queue_message(msg)
+
     elif m['command'] == 'NAV_RETURN_TO_LAUNCH':
       msg = mavlinkv10.MAVLink_command_long_message(
               self.module_context.status.target_system,    # target_system
