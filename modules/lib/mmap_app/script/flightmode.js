@@ -8,7 +8,8 @@ $(function () {
         armed: false,
         arming: false,
         disarming: false,
-        modestring: 'None'
+        modestring: 'None',
+        takeoff: false
       };
     },
     initialize: function () {
@@ -155,11 +156,13 @@ $(function () {
         '<a class="btn" id="flightmode-btn-rtl" href="#">RTL</a>';
       var land =
         '<a class="btn" id="flightmode-btn-land" href="#">Land</a>';
+      var takeoff =
+        '<a class="btn" id="flightmode-btn-takeoff" href="#">Takeoff</a>';
       var arm = 
         '<p><a class="btn" id="flightmode-btn-arm" href="#">Arm</a></p>';
       if (this.popover) {
         this.popover.content(function (e) {
-          e.html(arm + '<br />' + loiter + rtl + land);
+          e.html(arm + '<br />' + loiter + rtl + land + takeoff);
         });
 
         this.armingButtonView = new ArmingButtonView({
@@ -183,6 +186,12 @@ $(function () {
           el: $('#flightmode-btn-land'),
           model: this.commandModel,
           command: 'NAV_LAND'
+        });
+
+        this.takeoffButtonView = new CommandButtonView({
+          el: $('#flightmode-btn-takeoff'),
+          model: this.commandModel,
+          command: 'NAV_TAKEOFF'
         });
 
       }
