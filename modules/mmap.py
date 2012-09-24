@@ -1,3 +1,4 @@
+from time import sleep
 import logging
 import os
 import sys
@@ -136,21 +137,64 @@ class ModuleState(object):
             validate(msg, 'ch8'))
     self.module_context.queue_message(msg)
 
+  def loiter(self):
+		msg = mavlinkv10.MAVLink_command_long_message(
+			self.module_context.status.target_system,    # target_system
+			self.module_context.status.target_component, # target_component
+			mavlinkv10.MAV_CMD_NAV_LOITER_UNLIM,  # command
+			0, # confirmation
+			0, # param1
+			0, # param2
+			0, # param3
+			0, # param4
+			0, # param5
+			0, # param6
+			0) # param7
+		self.module_context.queue_message(msg)
+
   def command_long(self, m):
     if m['command'] == 'NAV_LOITER_UNLIM':
-      msg = mavlinkv10.MAVLink_command_long_message(
-              self.module_context.status.target_system,    # target_system
-              self.module_context.status.target_component, # target_component
-              mavlinkv10.MAV_CMD_NAV_LOITER_UNLIM,  # command
-              0, # confirmation
-              0, # param1
-              0, # param2
-              0, # param3
-              0, # param4
-              0, # param5
-              0, # param6
-              0) # param7
-      self.module_context.queue_message(msg)
+    	self.loiter()
+
+    elif m['command'] == 'NAV_TAKEOFF':
+			#The MAV_CMD_NAV_TAKEOFF command returns '3' when sent, so this is a 
+			#hack to get the quad off the ground
+
+			#10m
+			takeoff_alt = 10
+
+			#Throttle up
+			self.rcoverride({'ch3': 1500, 'ch4': 0})
+
+			#Wait a second and then hold throttle
+			sleep(1)
+			self.rcoverride({'ch3': 1315})
+
+			seq = 0 # Mission command sequence number
+			# NOT a coordinate frame, indicates a mission command, see mavlink common.xml
+			frame = mavlinkv10.MAV_FRAME_MISSION
+			cmd = mavlinkv10.MAV_CMD_NAV_TAKEOFF
+			param1 = 0  # Hold time in seconds.
+			param2 = 5  # Acceptance radius in meters.
+			param3 = 0  # Pass through the WP.
+			param4 = 0  # Desired yaw angle at WP.
+			x = 0 # Not used in mission frame
+			y = 0 # Not used in mission frame
+			# APM specific current value, 2 means this is a "guided mode"
+			# waypoint and not for the mission.
+			current = 2
+			autocontinue = 0
+			msg = mavlinkv10.MAVLink_mission_item_message(
+			self.module_context.status.target_system,
+			self.module_context.status.target_component,
+			seq, frame, cmd, current, autocontinue, param1, param2, param3, param4,
+			x, y, takeoff_alt)
+			self.module_context.queue_message(msg)
+
+			#Wait 2 seconds then enter loiter mode
+			sleep(2)
+			self.loiter()
+
     elif m['command'] == 'NAV_RETURN_TO_LAUNCH':
       msg = mavlinkv10.MAVLink_command_long_message(
               self.module_context.status.target_system,    # target_system
